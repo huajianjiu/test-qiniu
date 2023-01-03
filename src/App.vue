@@ -26,21 +26,37 @@ export default {
     return {
       uploadFile: {},
       formData: {},
-      fileList: []
+      fileList: [],
+      imageList: [],
+    }
+  },
+  watch: {
+    'imageList.length': {
+      handler(newValue, oldValue) {
+        console.log("变化");
+        if (newValue == this.fileList.length&&newValue!=0) {
+          // 发送项目名称
+          axios.post('/api/upload/upload-urls',{imageList:this.imageList})
+        }
+      }
     }
   },
   methods: {
     afterRead(file) {
       // 此时可以自行将文件上传至服务器
-      console.log(file);
       axios.get('/api/upload/upload-token')
         .then(({ data }) => {
-          console.log(data);
+          data = data.data;
+          // console.log();
+          // console.log(data.token);
           this.fileList.forEach(i => {
+            let that = this;
+            i.status = "uploading";
+            i.message = "上传中..."
             //七牛信息
             const qiniuUploadInfo = {
               file: i.file, //文件对象
-              key: i.file.name, //文件资源名称
+              key: utils.createFileNameByUUID(i.file.name), //文件资源名称
               token: data.token, //从后端获取的uplodaToken
             }
             const putExtra = {
@@ -62,47 +78,22 @@ export default {
             //上传开始
             observable.subscribe({
               next(res) {
-                console.log('next', res)
+                // console.log('next', res)
               },
               error(err) {
+                i.status = "fail";
+                i.message = "上传失败"
                 console.log('err', err)
               },
               complete(res) {//来到这里就是上传成功了。。
-                console.log('complete', res)
+                i.status = "success";
+                i.message = ""
+                that.imageList.push({ key: res.key});
               }
             })
           })
-
+          // 
         })
-    },
-    uploadFileFunc() {
-      console.log(1111);
-      let files = this.$refs.upload.files;
-      files = Array.from(files);
-      axios.get('/api/upload/upload-token')
-        .then(({ data }) => {
-          console.log(data);
-          files.forEach(element => {
-            let formdata = new FormData()
-            formdata.append('file', element);
-            const observable = qiniu.upload(formdata, Date.now(), data.token, { fname: element.name, mimeType: element.type, }, { upprotocol: 'http' })
-            const subscription = observable.subscribe({
-              next(res) {
-                // ...
-              },
-              error(err) {
-                // ...
-              },
-              complete(res) {
-
-                console.log("上传成功" + res);
-              }
-            }) // 上传开始
-          });
-
-        })
-
-
     }
   },
 }
